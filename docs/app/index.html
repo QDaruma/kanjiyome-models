@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KanjiYome · Lis le japonais, vraiment</title>
+<meta name="description" content="Furigana et dictionnaire instantanés sur n'importe quel texte japonais. App Android, lecteur web et extension navigateur. 100 % local.">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23C8102E'/><text x='50' y='68' font-size='52' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'>読</text></svg>">
+</head>
+<body>
+<header class="top">
+  <div class="wrap top-bar">
+    <a class="logo" href="index.html"><span class="seal">読</span>KanjiYome</a>
+    <nav>
+      <a href="lire.html" data-i18n="navReader">Lecteur</a>
+      <a href="#extension" data-i18n="navExt">Extension</a>
+      <a class="cta" href="https://play.google.com/apps/testing/com.kanjiyome.app" data-i18n="navApp">App Android</a>
+      <button id="langBtn" class="lang" onclick="kyToggleLang()">EN</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <p class="demo jp"><ruby>漢字<rt>かんじ</rt></ruby>が<ruby>読<rt>よ</rt></ruby>めなくても、<ruby>日本語<rt>にほんご</rt></ruby>は<ruby>読<rt>よ</rt></ruby>める。</p>
+    <h1><span data-i18n="heroTitle1">Lis le japonais.</span> <em data-i18n="heroTitle2">Vraiment.</em></h1>
+    <p class="sub" data-i18n="heroSub"></p>
+    <div class="actions">
+      <a class="btn primary" href="lire.html" data-i18n="ctaTry">Essayer le lecteur</a>
+      <a class="btn ghost" href="https://play.google.com/apps/testing/com.kanjiyome.app" data-i18n="ctaPlay">App Android (bêta)</a>
+    </div>
+  </section>
+
+  <section class="block">
+    <p class="overline">KanjiYome</p>
+    <h2 data-i18n="featTitle">Le même moteur, trois surfaces</h2>
+    <div class="grid3">
+      <div class="card"><span class="ico">📖</span><h3 data-i18n="feat1t"></h3><p data-i18n="feat1p"></p></div>
+      <div class="card"><span class="ico">🔎</span><h3 data-i18n="feat2t"></h3><p data-i18n="feat2p"></p></div>
+      <div class="card"><span class="ico">🎨</span><h3 data-i18n="feat3t"></h3><p data-i18n="feat3p"></p></div>
+      <div class="card"><span class="ico">🔒</span><h3 data-i18n="feat4t"></h3><p data-i18n="feat4p"></p></div>
+      <div class="card"><span class="ico">📷</span><h3 data-i18n="feat5t"></h3><p data-i18n="feat5p"></p></div>
+      <div class="card"><span class="ico">🧩</span><h3 data-i18n="feat6t"></h3><p data-i18n="feat6p"></p></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2 data-i18n="ecoTitle">Chaque plateforme fait ce qu'elle fait le mieux</h2>
+    <div class="tablewrap">
+      <table class="compare">
+        <thead><tr><th></th><th data-i18n="ecoMobile">Mobile</th><th data-i18n="ecoWeb">Web</th><th data-i18n="ecoExt">Extension</th></tr></thead>
+        <tbody>
+          <tr><td data-i18n="ecoRow1"></td><td class="y">✓</td><td class="n">·</td><td class="n">·</td></tr>
+          <tr><td data-i18n="ecoRow2"></td><td class="y">✓</td><td class="y">✓</td><td class="n">·</td></tr>
+          <tr><td data-i18n="ecoRow3"></td><td class="y">✓*</td><td class="n">·</td><td class="y">✓</td></tr>
+          <tr><td data-i18n="ecoRow4"></td><td class="y">✓</td><td class="n" data-i18n="ecoSoon">bientôt</td><td class="n">·</td></tr>
+          <tr><td data-i18n="ecoRow5"></td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="block" id="extension">
+    <p class="overline">Chrome · Edge · Brave</p>
+    <h2 data-i18n="extTitle">Extension navigateur</h2>
+    <p data-i18n="extP" style="max-width:640px;color:var(--ink-2)"></p>
+    <ol style="color:var(--ink-2);max-width:640px">
+      <li data-i18n="extStep1"></li>
+      <li data-i18n="extStep2"></li>
+      <li data-i18n="extStep3"></li>
+      <li data-i18n="extStep4"></li>
+    </ol>
+    <a class="btn primary" id="extZip" href="https://github.com/QDaruma/kanjiyome-models/releases/latest/download/kanjiyome-extension.zip" data-i18n="extDl">Télécharger l'extension</a>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p data-i18n="footMade"></p>
+    <p><a href="https://mnzkcsgexmzwqilmwill.supabase.co/functions/v1/privacy" data-i18n="footPriv">Confidentialité</a> · © Mundle SAS</p>
+  </div>
+</footer>
+<script src="i18n.js"></script>
+</body>
+</html>
