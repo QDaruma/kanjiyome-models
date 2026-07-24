@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KanjiYome : adresse confirmée</title>
+<style>
+  body { margin:0; font-family:-apple-system,'Segoe UI',Roboto,sans-serif; background:#f7f5f0; color:#1c1b1a; display:flex; min-height:100vh; align-items:center; justify-content:center; }
+  .card { max-width:26rem; margin:1.5rem; padding:2.5rem 2rem; background:#fffdfa; border:1px solid #e3ded4; border-radius:18px; text-align:center; }
+  .mark { width:64px; height:64px; border-radius:50%; background:#2e7d32; color:#fff; font-size:2rem; line-height:64px; margin:0 auto 1.25rem; }
+  h1 { font-size:1.35rem; margin:0 0 .4rem; }
+  h2 { font-size:.95rem; font-weight:500; color:#6f6a61; margin:0 0 1.2rem; }
+  p { font-size:.95rem; line-height:1.5; margin:.6rem 0; }
+  .en { color:#6f6a61; font-size:.85rem; }
+  .brand { margin-top:1.6rem; font-weight:700; color:#c8102e; letter-spacing:.02em; }
+  .detail { color:#a33; font-size:.8rem; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="mark" id="mark">&#10003;</div>
+    <h1 id="t1">Adresse confirmée</h1>
+    <h2 id="t2">Email confirmed</h2>
+    <p id="b1">Ton compte KanjiYome est actif. Retourne dans l'application : tu y seras connecté automatiquement (ou touche « Se connecter »).</p>
+    <p class="en" id="b2">Your KanjiYome account is active. Go back to the app: you will be signed in automatically (or tap Sign in).</p>
+    <p class="detail" id="detail"></p>
+    <div class="brand">KanjiYome</div>
+  </div>
+<script>
+// Supabase renvoie les échecs en query (?error=...&error_description=...).
+// Un succès met les jetons dans le FRAGMENT (invisible et inutile ici).
+(function () {
+  var q = new URLSearchParams(location.search);
+  var err = q.get('error_description') || q.get('error');
+  if (!err) return;
+  document.getElementById('mark').innerHTML = '&#9888;';
+  document.getElementById('mark').style.background = '#b26a00';
+  document.getElementById('t1').textContent = 'Lien invalide ou expiré';
+  document.getElementById('t2').textContent = 'Invalid or expired link';
+  document.getElementById('b1').textContent =
+    "Le lien de confirmation n'a pas pu être validé. Ouvre l'application et redemande un e-mail de confirmation.";
+  document.getElementById('b2').textContent =
+    'The confirmation link could not be validated. Open the app and request a new confirmation email.';
+  document.getElementById('detail').textContent = String(err).slice(0, 200);
+})();
+</script>
+</body>
+</html>
