@@ -1,43 +1,76 @@
 <!doctype html>
-<html lang="fr">
+<html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KanjiYome : nouveau mot de passe</title>
+<title>KanjiYome</title>
 <style>
   body { margin:0; font-family:-apple-system,'Segoe UI',Roboto,sans-serif; background:#f7f5f0; color:#1c1b1a; display:flex; min-height:100vh; align-items:center; justify-content:center; }
   .card { max-width:26rem; width:100%; margin:1.5rem; padding:2.5rem 2rem; background:#fffdfa; border:1px solid #e3ded4; border-radius:18px; text-align:center; }
-  h1 { font-size:1.3rem; margin:0 0 .3rem; }
-  h2 { font-size:.9rem; font-weight:500; color:#6f6a61; margin:0 0 1.4rem; }
+  h1 { font-size:1.3rem; margin:0 0 1.2rem; }
   input { width:100%; box-sizing:border-box; padding:.85rem 1rem; font-size:1rem; border:1px solid #cfc9bd; border-radius:12px; margin-bottom:.9rem; background:#fbfaf7; }
   button { width:100%; padding:.9rem; font-size:1rem; font-weight:600; color:#fff; background:#c8102e; border:none; border-radius:999px; cursor:pointer; }
   button:disabled { opacity:.5; }
   .msg { margin-top:1rem; font-size:.92rem; line-height:1.45; }
   .ok { color:#2e7d32; font-weight:600; }
   .err { color:#a31515; }
-  .en { color:#6f6a61; font-size:.82rem; }
   .brand { margin-top:1.6rem; font-weight:700; color:#c8102e; }
 </style>
 </head>
 <body>
 <div class="card">
-  <h1>Nouveau mot de passe</h1>
-  <h2>Set a new password</h2>
+  <h1 id="title"></h1>
   <form id="f">
-    <input id="pw" type="password" minlength="6" required placeholder="Nouveau mot de passe (6+ car.) / New password">
-    <input id="pw2" type="password" minlength="6" required placeholder="Confirme le mot de passe / Confirm">
-    <button id="go" type="submit">Changer le mot de passe</button>
+    <input id="pw" type="password" minlength="6" required>
+    <input id="pw2" type="password" minlength="6" required>
+    <button id="go" type="submit"></button>
   </form>
   <div class="msg" id="msg"></div>
   <div class="brand">KanjiYome</div>
 </div>
 <script>
-// Le lien Supabase arrive avec les jetons dans le FRAGMENT
-// (#access_token=...&type=recovery) : on les lit et on appelle
-// PUT /auth/v1/user avec la clé anon (publique par design) + le jeton.
+// Page « nouveau mot de passe » (cible du lien de réinitialisation, via la
+// redirection 302 de l'Edge function reset-password). La langue suit celle du
+// NAVIGATEUR (français si l'appareil est en français, anglais sinon). Le lien
+// Supabase arrive avec les jetons dans le FRAGMENT (#access_token=...&
+// type=recovery) : on les lit et on appelle PUT /auth/v1/user avec la clé anon
+// (publique par design) + le jeton.
 (function () {
   var SUPABASE_URL = 'https://mnzkcsgexmzwqilmwill.supabase.co';
   var ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1uemtjc2dleG16d3FpbG13aWxsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0NzY1ODQsImV4cCI6MjA5NzA1MjU4NH0.RP5GeFiA-1rJHCTzbFScX-6bfn_MRaj6wJJl8_xtIOE';
+  var isFr = (navigator.language || 'en').toLowerCase().indexOf('fr') === 0;
+  var STR = {
+    fr: {
+      title: 'Nouveau mot de passe',
+      pw: 'Nouveau mot de passe (6+ car.)',
+      pw2: 'Confirme le mot de passe',
+      go: 'Changer le mot de passe',
+      badLink: "Lien invalide ou expiré. Redemande un e-mail depuis l'application.",
+      mismatch: 'Les deux mots de passe ne correspondent pas.',
+      done: "Mot de passe changé. Retourne dans l'application et connecte-toi.",
+      fail: 'Échec : ',
+      net: 'Réseau indisponible, réessaie.'
+    },
+    en: {
+      title: 'Set a new password',
+      pw: 'New password (6+ chars)',
+      pw2: 'Confirm password',
+      go: 'Change password',
+      badLink: 'Invalid or expired link. Request a new email from the app.',
+      mismatch: 'Passwords do not match.',
+      done: 'Password changed. Go back to the app and sign in.',
+      fail: 'Failed: ',
+      net: 'Network error, try again.'
+    }
+  };
+  var t = isFr ? STR.fr : STR.en;
+  document.documentElement.lang = isFr ? 'fr' : 'en';
+  document.title = 'KanjiYome : ' + t.title;
+  document.getElementById('title').textContent = t.title;
+  document.getElementById('pw').placeholder = t.pw;
+  document.getElementById('pw2').placeholder = t.pw2;
+  document.getElementById('go').textContent = t.go;
+
   var msg = document.getElementById('msg');
   var form = document.getElementById('f');
   var params = new URLSearchParams((location.hash || '#').slice(1));
@@ -45,17 +78,17 @@
   var qerr = new URLSearchParams(location.search).get('error_description');
   if (qerr || !token) {
     form.style.display = 'none';
-    msg.innerHTML = '<span class="err">Lien invalide ou expiré. Redemande un e-mail depuis l\'application.</span><br><span class="en">Invalid or expired link. Request a new email from the app.</span>';
+    var e = document.createElement('span');
+    e.className = 'err';
+    e.textContent = t.badLink;
+    msg.appendChild(e);
     return;
   }
-  form.addEventListener('submit', function (e) {
-    e.preventDefault();
+  form.addEventListener('submit', function (ev) {
+    ev.preventDefault();
     var pw = document.getElementById('pw').value;
     var pw2 = document.getElementById('pw2').value;
-    if (pw !== pw2) {
-      msg.innerHTML = '<span class="err">Les deux mots de passe ne correspondent pas. / Passwords do not match.</span>';
-      return;
-    }
+    if (pw !== pw2) { msg.textContent = t.mismatch; return; }
     var btn = document.getElementById('go');
     btn.disabled = true;
     msg.textContent = '...';
@@ -69,18 +102,25 @@
       body: JSON.stringify({ password: pw })
     }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
+        msg.textContent = '';
         if (res.ok) {
           form.style.display = 'none';
-          msg.innerHTML = '<span class="ok">Mot de passe changé. Retourne dans l\'application et connecte-toi.</span><br><span class="en">Password changed. Go back to the app and sign in.</span>';
+          var s = document.createElement('span');
+          s.className = 'ok';
+          s.textContent = t.done;
+          msg.appendChild(s);
         } else {
           btn.disabled = false;
-          var d = (res.j && (res.j.msg || res.j.message || res.j.error_description)) || 'Erreur inconnue';
-          msg.innerHTML = '<span class="err">Échec : ' + String(d).slice(0, 160) + '</span>';
+          var d = (res.j && (res.j.msg || res.j.message || res.j.error_description)) || '';
+          var s2 = document.createElement('span');
+          s2.className = 'err';
+          s2.textContent = t.fail + String(d).slice(0, 160);
+          msg.appendChild(s2);
         }
       })
       .catch(function () {
         btn.disabled = false;
-        msg.innerHTML = '<span class="err">Réseau indisponible, réessaie. / Network error, try again.</span>';
+        msg.textContent = t.net;
       });
   });
 })();
