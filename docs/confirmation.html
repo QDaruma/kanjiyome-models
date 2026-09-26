@@ -30,6 +30,17 @@
 // query (?error=...&error_description=...) ; un succès met les jetons dans le
 // fragment (invisible et inutile ici).
 (function () {
+  // ⚠️ FILET : si GoTrue retombe sur le Site URL (redirection hors liste
+  // blanche, client sans redirectTo), un lien de RÉCUPÉRATION atterrit ICI, et
+  // cette page afficherait « Adresse confirmée » : faux, et le jeton serait
+  // perdu. On le renvoie vers la page de nouveau mot de passe, jeton compris.
+  var q0 = new URLSearchParams(location.search);
+  var h0 = new URLSearchParams((location.hash || '#').slice(1));
+  if ((q0.get('type') === 'recovery' && q0.get('token_hash')) ||
+      h0.get('type') === 'recovery') {
+    location.replace('mot-de-passe.html' + location.search + location.hash);
+    return;
+  }
   var isFr = (navigator.language || 'en').toLowerCase().indexOf('fr') === 0;
   var STR = {
     fr: {

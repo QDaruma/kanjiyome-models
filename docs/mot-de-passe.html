@@ -3,125 +3,302 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
 <title>KanjiYome</title>
 <style>
   body { margin:0; font-family:-apple-system,'Segoe UI',Roboto,sans-serif; background:#f7f5f0; color:#1c1b1a; display:flex; min-height:100vh; align-items:center; justify-content:center; }
-  .card { max-width:26rem; width:100%; margin:1.5rem; padding:2.5rem 2rem; background:#fffdfa; border:1px solid #e3ded4; border-radius:18px; text-align:center; }
-  h1 { font-size:1.3rem; margin:0 0 1.2rem; }
-  input { width:100%; box-sizing:border-box; padding:.85rem 1rem; font-size:1rem; border:1px solid #cfc9bd; border-radius:12px; margin-bottom:.9rem; background:#fbfaf7; }
-  button { width:100%; padding:.9rem; font-size:1rem; font-weight:600; color:#fff; background:#c8102e; border:none; border-radius:999px; cursor:pointer; }
-  button:disabled { opacity:.5; }
+  .card { max-width:26rem; width:100%; margin:1.5rem; padding:2.2rem 1.6rem; background:#fffdfa; border:1px solid #e3ded4; border-radius:18px; text-align:center; box-sizing:border-box; }
+  .logo { display:block; width:56px; height:56px; margin:0 auto 1rem; border-radius:14px; }
+  h1 { font-size:1.3rem; margin:0 0 1rem; }
+  .rules { text-align:left; font-size:.88rem; line-height:1.5; margin:0 0 1rem; padding:0; list-style:none; color:#5b574f; }
+  .rules li::before { content:'\2022'; display:inline-block; width:1.2em; }
+  .rules li.met { color:#2e6b31; }
+  .rules li.met::before { content:'\2713'; }
+  .field { position:relative; margin-bottom:.9rem; }
+  input { width:100%; box-sizing:border-box; padding:.85rem 3.2rem .85rem 1rem; font-size:1rem; border:1px solid #cfc9bd; border-radius:12px; background:#fbfaf7; color:#1c1b1a; }
+  .eye { position:absolute; right:.3rem; top:50%; transform:translateY(-50%); width:44px; height:44px; padding:0; border:none; background:transparent; color:#5b574f; font-size:.8rem; font-weight:600; cursor:pointer; }
+  button.go { width:100%; min-height:48px; padding:.9rem; font-size:1rem; font-weight:600; color:#fff; background:#c8102e; border:none; border-radius:999px; cursor:pointer; }
+  button.go:disabled { opacity:.5; }
   .msg { margin-top:1rem; font-size:.92rem; line-height:1.45; }
-  .ok { color:#2e7d32; font-weight:600; }
+  .ok { color:#2e6b31; font-weight:600; }
   .err { color:#a31515; }
-  .brand { margin-top:1.6rem; font-weight:700; color:#c8102e; }
+  .brand { margin-top:1.4rem; font-weight:700; color:#c8102e; }
 </style>
 </head>
 <body>
 <div class="card">
+  <img class="logo" src="https://kanjiyome.com/apple-touch-icon.png" width="56" height="56" alt="KanjiYome">
   <h1 id="title"></h1>
-  <form id="f">
-    <input id="pw" type="password" minlength="6" required>
-    <input id="pw2" type="password" minlength="6" required>
-    <button id="go" type="submit"></button>
+  <form id="f" novalidate>
+    <ul class="rules" id="rules">
+      <li id="r-len"></li>
+      <li id="r-letter"></li>
+      <li id="r-digit"></li>
+    </ul>
+    <div class="field">
+      <input id="pw" type="password" minlength="8" autocomplete="new-password" required>
+      <button class="eye" type="button" data-for="pw"></button>
+    </div>
+    <div class="field">
+      <input id="pw2" type="password" minlength="8" autocomplete="new-password" required>
+      <button class="eye" type="button" data-for="pw2"></button>
+    </div>
+    <button class="go" id="go" type="submit"></button>
   </form>
-  <div class="msg" id="msg"></div>
+  <div class="msg" id="msg" role="status" aria-live="polite"></div>
   <div class="brand">KanjiYome</div>
 </div>
 <script>
-// Page « nouveau mot de passe » (cible du lien de réinitialisation, via la
-// redirection 302 de l'Edge function reset-password). La langue suit celle du
-// NAVIGATEUR (français si l'appareil est en français, anglais sinon). Le lien
-// Supabase arrive avec les jetons dans le FRAGMENT (#access_token=...&
-// type=recovery) : on les lit et on appelle PUT /auth/v1/user avec la clé anon
-// (publique par design) + le jeton.
+// Page « nouveau mot de passe », cible du lien de réinitialisation (via la
+// redirection 302 de l'Edge function reset-password, qui transmet la QUERY).
+//
+// ⚠️ **L'APP ANDROID EST EN PKCE** (défaut de supabase_flutter 2.x) : un lien
+// `{{ .ConfirmationURL }}` passe par GET /verify, qui BRÛLE le jeton puis
+// redirige avec un `?code=` que SEULE l'app qui a fait la demande peut
+// échanger (son vérificateur vit dans ses SharedPreferences). Cette page n'en
+// pouvait rien faire : le reset était mort pour tous les utilisateurs Android
+// (constaté le 2026-09-26). Le modèle d'e-mail envoie donc désormais
+// `?token_hash=…&type=recovery`, que la page échange elle-même par
+// POST /auth/v1/verify : ça marche quel que soit l'appareil et le flux.
+//
+// ⚠️ **LE JETON NE SE CONSOMME QU'À L'ENVOI DU FORMULAIRE**, jamais au
+// chargement : un antivirus de messagerie ou un aperçu de lien qui ouvre la
+// page ne doit pas brûler un jeton à usage unique. Et une fois `verify`
+// réussi, la session de récupération est GARDÉE en mémoire : si le serveur
+// refuse le mot de passe (fuité, identique à l'ancien), on réessaie avec elle,
+// sans redemander un e-mail pour un jeton déjà consommé.
+//
+// Chemins gardés : `#access_token` (e-mails partis sous l'ancien modèle depuis
+// un client implicite) ; `?code=` seul reçoit un message DÉDIÉ plutôt que
+// « invalide ou expiré », qui fait douter de soi.
+//
+// Règles de mot de passe : miroir EXACT de lib/core/password_policy.dart
+// (8 caractères, une lettre, un chiffre). Le serveur exige 8 lui aussi
+// (password_min_length, tools/auth_email_setup.py). Langue : celle du
+// NAVIGATEUR (français, sinon anglais). Clé anon : publique par design.
 (function () {
   var SUPABASE_URL = 'https://mnzkcsgexmzwqilmwill.supabase.co';
   var ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1uemtjc2dleG16d3FpbG13aWxsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0NzY1ODQsImV4cCI6MjA5NzA1MjU4NH0.RP5GeFiA-1rJHCTzbFScX-6bfn_MRaj6wJJl8_xtIOE';
+  var MIN_LEN = 8;
   var isFr = (navigator.language || 'en').toLowerCase().indexOf('fr') === 0;
   var STR = {
     fr: {
       title: 'Nouveau mot de passe',
-      pw: 'Nouveau mot de passe (6+ car.)',
+      rLen: 'Au moins 8 caractères',
+      rLetter: 'Au moins une lettre',
+      rDigit: 'Au moins un chiffre',
+      pw: 'Nouveau mot de passe',
       pw2: 'Confirme le mot de passe',
+      show: 'Voir',
+      hide: 'Masquer',
+      showLabel: 'Afficher le mot de passe',
+      hideLabel: 'Masquer le mot de passe',
       go: 'Changer le mot de passe',
-      badLink: "Lien invalide ou expiré. Redemande un e-mail depuis l'application.",
+      badLink: "Ce lien est incomplet. Redemande un e-mail depuis l'application (Connexion, puis « Mot de passe oublié »).",
+      codeLink: "Ce lien a été ouvert dans un format que cette page ne sait pas lire. Redemande un e-mail depuis l'application : le nouveau lien fonctionnera ici.",
+      expired: "Ce lien a expiré ou a déjà servi. Redemande un e-mail depuis l'application.",
+      rules: 'Le mot de passe ne respecte pas encore les règles ci-dessus.',
       mismatch: 'Les deux mots de passe ne correspondent pas.',
-      done: "Mot de passe changé. Retourne dans l'application et connecte-toi.",
+      pwned: 'Ce mot de passe figure dans des fuites de données connues. Choisis-en un autre.',
+      same: "C'est ton mot de passe actuel. Choisis-en un nouveau.",
+      weak: 'Mot de passe refusé : choisis-en un plus solide.',
+      busy: 'Trop de tentatives. Attends une minute, puis réessaie.',
+      done: "Mot de passe changé. Retourne dans l'application et connecte-toi avec ton nouveau mot de passe.",
       fail: 'Échec : ',
-      net: 'Réseau indisponible, réessaie.'
+      net: 'Réseau indisponible. Vérifie ta connexion, puis réessaie.'
     },
     en: {
       title: 'Set a new password',
-      pw: 'New password (6+ chars)',
+      rLen: 'At least 8 characters',
+      rLetter: 'At least one letter',
+      rDigit: 'At least one digit',
+      pw: 'New password',
       pw2: 'Confirm password',
+      show: 'Show',
+      hide: 'Hide',
+      showLabel: 'Show password',
+      hideLabel: 'Hide password',
       go: 'Change password',
-      badLink: 'Invalid or expired link. Request a new email from the app.',
+      badLink: 'This link is incomplete. Request a new email from the app (Sign in, then "Forgot password").',
+      codeLink: 'This link was opened in a format this page cannot read. Request a new email from the app: the new link will work here.',
+      expired: 'This link has expired or was already used. Request a new email from the app.',
+      rules: 'The password does not meet the rules above yet.',
       mismatch: 'Passwords do not match.',
-      done: 'Password changed. Go back to the app and sign in.',
+      pwned: 'This password appears in known data breaches. Please choose another one.',
+      same: 'This is your current password. Please choose a new one.',
+      weak: 'Password rejected: please choose a stronger one.',
+      busy: 'Too many attempts. Wait a minute, then try again.',
+      done: 'Password changed. Go back to the app and sign in with your new password.',
       fail: 'Failed: ',
-      net: 'Network error, try again.'
+      net: 'Network unavailable. Check your connection, then try again.'
     }
   };
   var t = isFr ? STR.fr : STR.en;
   document.documentElement.lang = isFr ? 'fr' : 'en';
   document.title = 'KanjiYome : ' + t.title;
-  document.getElementById('title').textContent = t.title;
-  document.getElementById('pw').placeholder = t.pw;
-  document.getElementById('pw2').placeholder = t.pw2;
-  document.getElementById('go').textContent = t.go;
+  var $ = function (id) { return document.getElementById(id); };
+  $('title').textContent = t.title;
+  $('r-len').textContent = t.rLen;
+  $('r-letter').textContent = t.rLetter;
+  $('r-digit').textContent = t.rDigit;
+  $('pw').placeholder = t.pw;
+  $('pw2').placeholder = t.pw2;
+  $('pw').setAttribute('aria-label', t.pw);
+  $('pw2').setAttribute('aria-label', t.pw2);
+  $('go').textContent = t.go;
 
-  var msg = document.getElementById('msg');
-  var form = document.getElementById('f');
-  var params = new URLSearchParams((location.hash || '#').slice(1));
-  var token = params.get('access_token');
-  var qerr = new URLSearchParams(location.search).get('error_description');
-  if (qerr || !token) {
+  var msg = $('msg');
+  var form = $('f');
+
+  function say(text, cls) {
+    msg.textContent = '';
+    var s = document.createElement('span');
+    if (cls) s.className = cls;
+    s.textContent = text;
+    msg.appendChild(s);
+  }
+  function dead(text) {
     form.style.display = 'none';
-    var e = document.createElement('span');
-    e.className = 'err';
-    e.textContent = t.badLink;
-    msg.appendChild(e);
+    say(text, 'err');
+  }
+
+  // Bouton œil : même geste que l'app.
+  Array.prototype.forEach.call(document.querySelectorAll('.eye'), function (b) {
+    var input = $(b.getAttribute('data-for'));
+    function paint() {
+      var shown = input.type === 'text';
+      b.textContent = shown ? t.hide : t.show;
+      b.setAttribute('aria-label', shown ? t.hideLabel : t.showLabel);
+    }
+    b.addEventListener('click', function () {
+      input.type = input.type === 'password' ? 'text' : 'password';
+      paint();
+    });
+    paint();
+  });
+
+  // Règles vérifiées EN DIRECT (miroir de password_policy.dart).
+  function issues(pw) {
+    return {
+      len: pw.length < MIN_LEN,
+      letter: !/[A-Za-zÀ-ÿ]/.test(pw),
+      digit: !/[0-9]/.test(pw)
+    };
+  }
+  function paintRules() {
+    var i = issues($('pw').value);
+    $('r-len').className = i.len ? '' : 'met';
+    $('r-letter').className = i.letter ? '' : 'met';
+    $('r-digit').className = i.digit ? '' : 'met';
+  }
+  $('pw').addEventListener('input', paintRules);
+  paintRules();
+
+  var q = new URLSearchParams(location.search);
+  var h = new URLSearchParams((location.hash || '#').slice(1));
+  var errCode = q.get('error_code') || h.get('error_code');
+  var errText = q.get('error_description') || h.get('error_description') ||
+      q.get('error') || h.get('error');
+  var tokenHash = q.get('token_hash');
+  var linkType = q.get('type');
+  // Session déjà ouverte : ancien modèle + client implicite, ou `verify`
+  // déjà réussi lors d'un envoi précédent (mot de passe refusé ensuite).
+  var accessToken = h.get('access_token');
+
+  if (errCode || errText) {
+    dead(errCode === 'otp_expired' || /expired|invalid/i.test(errText || '')
+        ? t.expired : t.fail + String(errText || errCode).slice(0, 160));
     return;
   }
-  form.addEventListener('submit', function (ev) {
-    ev.preventDefault();
-    var pw = document.getElementById('pw').value;
-    var pw2 = document.getElementById('pw2').value;
-    if (pw !== pw2) { msg.textContent = t.mismatch; return; }
-    var btn = document.getElementById('go');
-    btn.disabled = true;
-    msg.textContent = '...';
-    fetch(SUPABASE_URL + '/auth/v1/user', {
-      method: 'PUT',
+  if (!accessToken && !(tokenHash && (!linkType || linkType === 'recovery'))) {
+    dead(q.get('code') ? t.codeLink : t.badLink);
+    return;
+  }
+  // Le fragment porte une session : on l'efface de la barre d'adresse pour
+  // qu'elle ne reste ni dans l'historique ni dans une capture d'écran.
+  if (accessToken && history.replaceState) {
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+
+  function call(method, path, body, bearer) {
+    return fetch(SUPABASE_URL + path, {
+      method: method,
       headers: {
         'Content-Type': 'application/json',
         'apikey': ANON_KEY,
-        'Authorization': 'Bearer ' + token
+        'Authorization': 'Bearer ' + (bearer || ANON_KEY)
       },
-      body: JSON.stringify({ password: pw })
-    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
-      .then(function (res) {
-        msg.textContent = '';
-        if (res.ok) {
-          form.style.display = 'none';
-          var s = document.createElement('span');
-          s.className = 'ok';
-          s.textContent = t.done;
-          msg.appendChild(s);
-        } else {
-          btn.disabled = false;
-          var d = (res.j && (res.j.msg || res.j.message || res.j.error_description)) || '';
-          var s2 = document.createElement('span');
-          s2.className = 'err';
-          s2.textContent = t.fail + String(d).slice(0, 160);
-          msg.appendChild(s2);
-        }
-      })
-      .catch(function () {
-        btn.disabled = false;
-        msg.textContent = t.net;
+      body: body ? JSON.stringify(body) : undefined
+    }).then(function (r) {
+      return r.text().then(function (raw) {
+        var j = null;
+        try { j = raw ? JSON.parse(raw) : null; } catch (e) { j = null; }
+        return { ok: r.ok, status: r.status, j: j || {} };
       });
+    });
+  }
+
+  function explain(res) {
+    var j = res.j;
+    var code = j.error_code || j.code || '';
+    var text = String(j.msg || j.message || j.error_description || j.error || '');
+    var reasons = (j.weak_password && j.weak_password.reasons) || [];
+    if (reasons.indexOf('pwned') >= 0 || /pwned|breach|leak/i.test(text)) return t.pwned;
+    if (code === 'same_password' || /different from the old/i.test(text)) return t.same;
+    if (code === 'weak_password') return t.weak;
+    if (code === 'otp_expired' || /expired|not found|invalid/i.test(text)) return t.expired;
+    if (res.status === 429) return t.busy;
+    return t.fail + text.slice(0, 160);
+  }
+
+  form.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var pw = $('pw').value;
+    var pw2 = $('pw2').value;
+    var i = issues(pw);
+    if (i.len || i.letter || i.digit) { say(t.rules, 'err'); return; }
+    if (pw !== pw2) { say(t.mismatch, 'err'); return; }
+    var btn = $('go');
+    btn.disabled = true;
+    say('...');
+
+    // Le jeton ne se consomme QU'ICI, à l'envoi.
+    var session = accessToken
+      ? Promise.resolve(accessToken)
+      : call('POST', '/auth/v1/verify', { type: 'recovery', token_hash: tokenHash })
+          .then(function (res) {
+            if (!res.ok || !res.j.access_token) {
+              dead(explain(res));
+              return null;
+            }
+            accessToken = res.j.access_token;
+            return accessToken;
+          });
+
+    session.then(function (tok) {
+      if (!tok) return;
+      return call('PUT', '/auth/v1/user', { password: pw }, tok).then(function (res) {
+        if (!res.ok) {
+          btn.disabled = false;
+          var why = explain(res);
+          // Session de récupération expirée ou révoquée : rien à réessayer ici.
+          if (why === t.expired) { dead(why); return; }
+          say(why, 'err');
+          return;
+        }
+        form.style.display = 'none';
+        say(t.done, 'ok');
+        // Ne pas laisser traîner une session de récupération dans ce
+        // navigateur. `scope=local` : seule CETTE session se ferme, pas celles
+        // de l'app sur les autres appareils.
+        call('POST', '/auth/v1/logout?scope=local', null, tok).catch(function () {});
+        accessToken = null;
+      });
+    }).catch(function () {
+      btn.disabled = false;
+      say(t.net, 'err');
+    });
   });
 })();
 </script>
